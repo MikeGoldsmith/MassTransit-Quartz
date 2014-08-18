@@ -32,6 +32,16 @@ namespace MassTransit.QuartzIntegration.Tests
             }
         }
 
+        [Test]
+        public void Reschedule_should_have_clean_syntax()
+        {
+            IServiceBus bus = ServiceBusFactory.New(x => x.ReceiveFrom("loopback://localhost/client"));
+            using (bus)
+            {
+                bus.RescheduleMessage(10.Seconds().FromNow(), NewId.NextGuid());
+            }
+        }
+
 
         class A
         {

@@ -210,6 +210,51 @@ namespace MassTransit.Scheduling
             bus.Publish<CancelScheduledMessage>(command);
         }
 
+        /// <summary>
+        /// Reschedule a scheduled message using the scheduled message instance
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="bus"></param>
+        /// <param name="scheduleTime"></param>
+        /// <param name="message"></param>
+        public static void RescheduleMessage<T>(this IServiceBus bus, DateTime scheduleTime, ScheduledMessage<T> message)
+            where T : class
+        {
+            if (message == null)
+                throw new ArgumentNullException("message");
+
+            RescheduleMessage(bus, scheduleTime, message.TokenId);
+        }
+
+        /// <summary>
+        /// Reschedule a scheduled message using the tokenId that was returned when the message was scheduled.
+        /// </summary>
+        /// <param name="bus"></param>
+        /// <param name="scheduleTime">The new desired execution time</param>
+        /// <param name="tokenId">The TokenId of the scheduled message</param>
+        public static void RescheduleMessage(this IServiceBus bus, DateTime scheduleTime, Guid tokenId)
+        {
+            var command = new RescheduleMessageCommand(scheduleTime, tokenId);
+
+            bus.Publish<RescheduleMessage>(command);
+        }
+
+        class RescheduleMessageCommand : RescheduleMessage
+        {
+            public RescheduleMessageCommand(DateTime scheduledTime, Guid tokenId)
+            {
+                CorrelationId = NewId.NextGuid();
+
+                ScheduledTime = scheduledTime.Kind == DateTimeKind.Local
+                    ? scheduledTime.ToUniversalTime()
+                    : scheduledTime;
+                TokenId = tokenId;
+            }
+
+            public Guid CorrelationId { get; private set; }
+            public DateTime ScheduledTime { get; private set; }
+            public Guid TokenId { get; private set; }
+        }
 
         class CancelScheduledMessageCommand :
             CancelScheduledMessage

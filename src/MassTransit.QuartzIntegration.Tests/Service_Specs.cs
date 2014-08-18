@@ -305,4 +305,72 @@ namespace MassTransit.QuartzIntegration.Tests
                 _scheduler.Shutdown();
         }
     }
+
+    [TestFixture]
+    public class Using_the_quartx_service_and_rescheduling
+    {
+        [Test]
+        public void Should_reschedule_the_message()
+        {
+            ScheduledMessage<A> scheduledMessage = _bus.ScheduleMessage(1.Seconds().FromUtcNow(), new A { Name = "Joe" });
+
+            _bus.RescheduleMessage(15.Seconds().FromNow(), scheduledMessage);
+
+            Assert.IsFalse(_receivedA.WaitOne(10.Seconds()), "Message A handled");
+            Assert.IsTrue(_receivedA.WaitOne(20.Seconds()), "Message A handled");
+        }
+
+        [Test]
+        public void Should_throw_error_when_message_is_null()
+        {
+            ScheduledMessage<A> message = null;
+            Assert.Throws(typeof(ArgumentNullException), () => _bus.RescheduleMessage(1.Seconds().FromNow(), message));
+        }
+
+        IScheduler _scheduler;
+        IServiceBus _bus;
+        ManualResetEvent _receivedA;
+
+        class A
+        {
+            public string Name { get; set; }
+        }
+
+        [TestFixtureSetUp]
+        public void Setup_quartx_service()
+        {
+            ISchedulerFactory schedulerFactory = new StdSchedulerFactory();
+            _scheduler = schedulerFactory.GetScheduler();
+
+            _receivedA = new ManualResetEvent(false);
+
+            _bus = ServiceBusFactory.New(x =>
+            {
+                x.ReceiveFrom("loopback://localhost/quartz");
+                x.UseJsonSerializer();
+                x.SetConcurrentConsumerLimit(1);
+
+                x.Subscribe(s =>
+                {
+                    s.Handler<A>(msg => _receivedA.Set());
+                    s.Consumer(() => new ScheduleMessageConsumer(_scheduler));
+                    s.Consumer(() => new RescheduleMessageConsumer(_scheduler));
+                });
+            });
+
+            _scheduler.JobFactory = new MassTransitJobFactory(_bus);
+            _scheduler.Start();
+        }
+
+        [TestFixtureTearDown]
+        public void Teardown_quartz_service()
+        {
+            if (_scheduler != null)
+                _scheduler.Standby();
+            if (_bus != null)
+                _bus.Dispose();
+            if (_scheduler != null)
+                _scheduler.Shutdown();
+        }
+    }
 }

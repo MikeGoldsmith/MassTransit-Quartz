@@ -54,6 +54,7 @@
       <Link>SolutionVersion.cs</Link>
     </Compile>
     <Compile Include="CancelScheduledMessage.cs" />
+    <Compile Include="RecheduleMessage.cs" />
     <Compile Include="ScheduledMessage.cs" />
     <Compile Include="ScheduleMessage.cs" />
     <Compile Include="ScheduleMessageExtensions.cs" />
